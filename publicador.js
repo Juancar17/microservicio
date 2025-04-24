@@ -26,7 +26,13 @@ function descargarImagen(url, destino) {
 /**
  * Publica un producto en Milanuncios usando Puppeteer
  */
-async function publicarEnMilanuncios({ titulo, descripcion, precio, imagen }) {
+async function publicarEnMilanuncios({
+  titulo,
+  descripcion,
+  precio,
+  imagen,
+  categoria = "Informática",
+}) {
   const nombreArchivo = `imagen-${Date.now()}.jpg`;
   const rutaImagenLocal = path.join(__dirname, nombreArchivo);
 
@@ -36,14 +42,13 @@ async function publicarEnMilanuncios({ titulo, descripcion, precio, imagen }) {
 
     const browser = await puppeteer.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"], // Requisitos para Render
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+
     const page = await browser.newPage();
 
-    // Ir a Milanuncios
+    // Ir a Milanuncios y hacer login
     await page.goto("https://www.milanuncios.com/");
-
-    // Iniciar sesión
     await page.click('a[href*="login"]');
     await page.waitForSelector('input[name="email"]');
     await page.type('input[name="email"]', process.env.MILANUNCIOS_EMAIL);
@@ -52,7 +57,29 @@ async function publicarEnMilanuncios({ titulo, descripcion, precio, imagen }) {
     await page.waitForNavigation();
 
     // Ir al formulario de publicación
-    await page.goto("https://www.milanuncios.com/publicar-anuncio/");
+    await page.goto("https://www.milanuncios.com/publicar-anuncios-gratis");
+
+    // Esperar y seleccionar categoría (aquí elegimos por defecto informática)
+    switch (categoria.toLowerCase()) {
+      case "informática":
+        await page.waitForSelector('a[href*="informatica"]');
+        await page.click('a[href*="informatica"]');
+        break;
+      case "motor":
+        await page.waitForSelector('a[href*="motor"]');
+        await page.click('a[href*="motor"]');
+        break;
+      // Agrega más categorías según necesites
+      default:
+        console.log(
+          "⚠️ Categoría no reconocida. Usando Informática por defecto."
+        );
+        await page.waitForSelector('a[href*="informatica"]');
+        await page.click('a[href*="informatica"]');
+        break;
+    }
+
+    // Aquí deberías esperar el paso 2 y rellenar el formulario según el flujo de Milanuncios
     await page.waitForSelector('input[name="title"]');
     await page.type('input[name="title"]', titulo);
     await page.type('textarea[name="description"]', descripcion);
@@ -65,7 +92,7 @@ async function publicarEnMilanuncios({ titulo, descripcion, precio, imagen }) {
     ]);
     await fileChooser.accept([rutaImagenLocal]);
 
-    // Publicar
+    // Publicar anuncio
     await page.click('button[type="submit"]');
     await page.waitForNavigation();
 
